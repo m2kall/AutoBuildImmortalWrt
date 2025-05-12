@@ -77,7 +77,7 @@ jobs:
 
       - name: Generate Firmware SHA-256
         run: |
-          cp ${{ github.workspace }}/bin/targets/x86/64/*ext4-combined-efi.img.gz ${{ github.workspace }}
+          cp ${{ github.workspace }}/bin/targets/x86/64/*.img.gz ${{ github.workspace }}
           for file in *ext4-combined-efi.img.gz; do
             sha256sum "$file" > "$file.sha256"
             sha256sum -c "$file.sha256"
