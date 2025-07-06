@@ -6,9 +6,9 @@ echo "编译固件大小为: $PROFILE MB"
 echo "Include Docker: $INCLUDE_DOCKER"
 
 echo "Create pppoe-settings"
-mkdir -p  /home/build/immortalwrt/files/etc/config
+mkdir -p /home/build/immortalwrt/files/etc/config
 
-# 创建pppoe配置文件 yml传入环境变量ENABLE_PPPOE等 写入配置文件 供99-custom.sh读取
+# 创建pppoe配置文件
 cat << EOF > /home/build/immortalwrt/files/etc/config/pppoe-settings
 enable_pppoe=${ENABLE_PPPOE}
 pppoe_account=${PPPOE_ACCOUNT}
@@ -20,7 +20,7 @@ cat /home/build/immortalwrt/files/etc/config/pppoe-settings
 # 输出调试信息
 echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始编译..."
 
-# 定义所需安装的包列表 下列插件你都可以自行删减
+# 定义所需安装的包列表
 PACKAGES=""
 PACKAGES="$PACKAGES curl"
 PACKAGES="$PACKAGES luci-i18n-diskman-zh-cn"
@@ -30,7 +30,6 @@ PACKAGES="$PACKAGES luci-app-argon-config"
 PACKAGES="$PACKAGES luci-i18n-argon-config-zh-cn"
 PACKAGES="$PACKAGES luci-i18n-ttyd-zh-cn"
 PACKAGES="$PACKAGES openssh-sftp-server"
-# 增加几个必备组件 方便用户安装iStore
 PACKAGES="$PACKAGES fdisk"
 PACKAGES="$PACKAGES script-utils"
 PACKAGES="$PACKAGES luci-i18n-samba4-zh-cn"
@@ -41,11 +40,10 @@ if [ "$INCLUDE_DOCKER" = "yes" ]; then
     echo "Adding package: luci-i18n-dockerman-zh-cn"
 fi
 
-# 构建镜像
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with the following packages:"
-echo "$PACKAGES"
-
-make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
+# 这里要明确使用ext4 Profile
+# 你必须确认你的OpenWrt配置中有名为"generic-ext4"的Profile，否则不能成功
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with ext4 profile..."
+make image PROFILE="generic-ext4" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
 
 if [ $? -ne 0 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Error: Build failed!"
@@ -54,8 +52,7 @@ fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."
 
-# 等待镜像文件生成
-# 这个循环会最多等待10分钟（20次，每次30秒），确保文件已生成
+# 等待镜像文件生成（最多等待10分钟）
 for i in {1..20}; do
   if ls /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz 1> /dev/null 2>&1; then
     echo "镜像文件已找到。"
