@@ -2,7 +2,7 @@
 
 # Log file for debugging
 LOGFILE="/tmp/uci-defaults-log.txt"
-echo "Starting build-ext4-fixed.sh at $(date)" >> $LOGFILE
+echo "Starting build-ext4.sh at $(date)" >> $LOGFILE
 
 echo "编译固件大小为: $PROFILE MB"
 echo "Include Docker: $INCLUDE_DOCKER"
