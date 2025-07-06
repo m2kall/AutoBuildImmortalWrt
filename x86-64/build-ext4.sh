@@ -1,30 +1,24 @@
 #!/bin/bash
+set -e # Exit immediately if a command exits with a non-zero status.
+
 # Log file for debugging
-LOGFILE="/tmp/uci-defaults-log.txt"
-echo "Starting build script at $(date)" >> $LOGFILE
-echo "Firmware size profile: $PROFILE MB"
-echo "Include Docker: $INCLUDE_DOCKER"
-echo "PPPoE Enabled: $ENABLE_PPPOE"
+LOGFILE="/tmp/build-log.txt"
+echo "Starting build script at $(date)" > $LOGFILE
 
-echo "Create pppoe-settings file"
-# 确保目录存在
-mkdir -p /home/build/immortalwrt/files/etc/config
+BUILD_DIR="/home/build/immortalwrt"
+CONFIG_FILE="$BUILD_DIR/.config"
 
-# 创建pppoe配置文件
-cat << EOF > /home/build/immortalwrt/files/etc/config/pppoe-settings
-enable_pppoe=${ENABLE_PPPOE}
-pppoe_account=${PPPOE_ACCOUNT}
-pppoe_password=${PPPOE_PASSWORD}
-EOF
+echo "--- Modifying .config for EXT4 filesystem ---" >> $LOGFILE
 
-echo "--- pppoe-settings content ---"
-cat /home/build/immortalwrt/files/etc/config/pppoe-settings
-echo "-----------------------------"
+# Disable SQUASHFS and enable EXT4 in the .config file
+# This is the correct way to change the filesystem type without a full .config override
+sed -i 's/CONFIG_TARGET_ROOTFS_SQUASHFS=y/# CONFIG_TARGET_ROOTFS_SQUASHFS is not set/' "$CONFIG_FILE"
+echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> "$CONFIG_FILE"
 
-# 输出调试信息
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting build..."
+echo ".config modifications complete. New config state:" >> $LOGFILE
+grep 'ROOTFS' "$CONFIG_FILE" >> $LOGFILE
 
-# 定义所需安装的包列表
+# Define package list
 PACKAGES=""
 PACKAGES="$PACKAGES curl"
 PACKAGES="$PACKAGES luci-i18n-diskman-zh-cn"
@@ -38,19 +32,27 @@ PACKAGES="$PACKAGES fdisk"
 PACKAGES="$PACKAGES script-utils"
 PACKAGES="$PACKAGES luci-i18n-samba4-zh-cn"
 
-# 判断是否需要编译 Docker 插件
 if [ "$INCLUDE_DOCKER" = "yes" ]; then
     PACKAGES="$PACKAGES luci-i18n-dockerman-zh-cn"
-    echo "Adding package: luci-i18n-dockerman-zh-cn"
+    echo "Adding Docker package to the list." >> $LOGFILE
 fi
 
-# 【最终修正】使用 'generic' Profile，文件系统类型由 .config 文件决定
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with 'generic' profile. Filesystem type is determined by .config"
-make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
+# Create custom files directory
+FILES_DIR="$BUILD_DIR/files"
+mkdir -p "$FILES_DIR/etc/config"
 
-if [ $? -ne 0 ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Error: Build failed! Check .config for filesystem settings."
-    exit 1
+# Create PPPoE settings file if enabled
+if [ "$ENABLE_PPPOE" = "yes" ]; then
+    cat << EOF > "$FILES_DIR/etc/config/pppoe-settings"
+    enable_pppoe=${ENABLE_PPPOE}
+    pppoe_account=${PPPOE_ACCOUNT}
+    pppoe_password=${PPPOE_PASSWORD}
+EOF
+    echo "Created PPPoE config file." >> $LOGFILE
 fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."
+echo "--- Starting image build --- " >> $LOGFILE
+# Use the 'generic' profile, as the filesystem is now handled by the .config
+make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="$FILES_DIR" ROOTFS_PARTSIZE="$PROFILE"
+
+echo "Build command finished." >> $LOGFILE
