@@ -20,8 +20,6 @@ cat /home/build/immortalwrt/files/etc/config/pppoe-settings
 # 输出调试信息
 echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始编译..."
 
-
-
 # 定义所需安装的包列表 下列插件你都可以自行删减
 PACKAGES=""
 PACKAGES="$PACKAGES curl"
@@ -55,3 +53,30 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."
+
+# 等待镜像文件生成
+# 这个循环会最多等待10分钟（20次，每次30秒），确保文件已生成
+for i in {1..20}; do
+  if ls /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz 1> /dev/null 2>&1; then
+    echo "镜像文件已找到。"
+    break
+  fi
+  echo "等待镜像文件生成...第$i次尝试"
+  sleep 30
+done
+
+# 如果文件仍未找到，提前退出
+if ! ls /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz 1> /dev/null 2>&1; then
+  echo "未找到目标镜像文件，请检查构建流程。"
+  exit 1
+fi
+
+# 复制镜像文件到工作区
+cp /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz "${{ github.workspace }}"
+
+# 生成SHA256校验和
+cd "${{ github.workspace }}"
+for file in *ext4-combined-efi.img.gz; do
+  sha256sum "$file" > "$file.sha256"
+  sha256sum -c "$file.sha256"
+done
