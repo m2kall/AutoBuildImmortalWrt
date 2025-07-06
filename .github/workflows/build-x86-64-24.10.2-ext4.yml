@@ -110,7 +110,7 @@ jobs:
           tag_name: Autobuild-x86-64
           body_path: ${{ github.workspace }}/info.md
           files: |
-            ${{ github.workspace }}/*sext4-combined-efi.img.gz
+            ${{ github.workspace }}/*ext4-combined-efi.img.gz
             ${{ github.workspace }}/*.sha256
           token: ${{ secrets.GITHUB_TOKEN }}
         env:
