@@ -8,8 +8,7 @@ on:
         required: true
         default: '1024'
       include_docker:
-        description: |
-          是否编译 Docker 插件
+        description: '是否编译 Docker 插件'
         required: true
         default: 'yes'
         type: choice
@@ -42,7 +41,6 @@ jobs:
       - name: Set executable permissions
         run: chmod +x ${{ github.workspace }}/x86-64/build-ext4.sh
 
-
       - name: Validate PPPoE Inputs
         run: |
           if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
@@ -52,6 +50,10 @@ jobs:
             fi
           fi
       
+      - name: List available profiles
+        run: |
+          echo "Listing available profiles in the image builder..."
+          docker run --rm -i immortalwrt/imagebuilder:x86-64-openwrt-24.10.2 make info
      
       - name: Build ImmortalWrt-x86-64-ext4-efi
         run: |
@@ -60,7 +62,7 @@ jobs:
           IFS=',' read -r -a profile_array <<< "$profiles"
           
           for profile in "${profile_array[@]}"; do
-            echo "Building for profile: $profile"
+            echo "Building for profile size: $profile MB"
             
             docker run --rm -i \
               --user root \
@@ -78,23 +80,25 @@ jobs:
 
       - name: Generate Firmware SHA-256
         run: |
-          cp ${{ github.workspace }}/bin/targets/x86/64/*ext4-combined-efi.img.gz ${{ github.workspace }}
+          cp ${{ github.workspace }}/bin/targets/x86/64/*ext4-combined-efi.img.gz ${{ github.workspace }}/
+          cd ${{ github.workspace }}
           for file in *ext4-combined-efi.img.gz; do
             sha256sum "$file" > "$file.sha256"
+            echo "Generated checksum for $file"
             sha256sum -c "$file.sha256"
           done
 
-      - name: Create info
+      - name: Create info.md for Release
         run: |
+          echo "Firmware built on $(date)" > ${{ github.workspace }}/info.md
           if [ "${{ github.event.inputs.include_docker }}" == "yes" ]; then
-            extra_content="#### 默认带docker"
-            echo -e "\n $extra_content" >> ${{ github.workspace }}/info.md
+            echo -e "\n#### Default with Docker support" >> ${{ github.workspace }}/info.md
           else
-            echo -e "NO docker"
+            echo -e "\n#### No Docker support" >> ${{ github.workspace }}/info.md
           fi
 
       - name: Upload ImmortWrt as release assets
-        uses: softprops/action-gh-release@v2.2.1
+        uses: softprops/action-gh-release@v2.0.4
         with:
           tag_name: Autobuild-x86-64
           body_path: ${{ github.workspace }}/info.md
@@ -102,5 +106,3 @@ jobs:
             ${{ github.workspace }}/*ext4-combined-efi.img.gz
             ${{ github.workspace }}/*.sha256
           token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
