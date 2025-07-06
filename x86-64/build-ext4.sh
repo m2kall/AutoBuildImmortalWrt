@@ -1,11 +1,13 @@
 #!/bin/bash
 # Log file for debugging
 LOGFILE="/tmp/uci-defaults-log.txt"
-echo "Starting 99-custom.sh at $(date)" >> $LOGFILE
-echo "编译固件大小为: $PROFILE MB"
+echo "Starting build script at $(date)" >> $LOGFILE
+echo "Firmware size profile: $PROFILE MB"
 echo "Include Docker: $INCLUDE_DOCKER"
+echo "PPPoE Enabled: $ENABLE_PPPOE"
 
-echo "Create pppoe-settings"
+echo "Create pppoe-settings file"
+# 确保目录存在
 mkdir -p /home/build/immortalwrt/files/etc/config
 
 # 创建pppoe配置文件
@@ -15,10 +17,12 @@ pppoe_account=${PPPOE_ACCOUNT}
 pppoe_password=${PPPOE_PASSWORD}
 EOF
 
-echo "cat pppoe-settings"
+echo "--- pppoe-settings content ---"
 cat /home/build/immortalwrt/files/etc/config/pppoe-settings
+echo "-----------------------------"
+
 # 输出调试信息
-echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始编译..."
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting build..."
 
 # 定义所需安装的包列表
 PACKAGES=""
@@ -40,10 +44,10 @@ if [ "$INCLUDE_DOCKER" = "yes" ]; then
     echo "Adding package: luci-i18n-dockerman-zh-cn"
 fi
 
-# 这里要明确使用ext4 Profile
-# 你必须确认你的OpenWrt配置中有名为"generic-ext4"的Profile，否则不能成功
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with ext4 profile..."
-make image PROFILE="generic-ext4" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
+# 使用 "generic" profile 进行编译，ext4 文件系统通常由 .config 文件定义
+# 运行action时请先查看 "List available profiles" 步骤的输出来确认正确的Profile名称
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with 'generic' profile..."
+make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
 
 if [ $? -ne 0 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Error: Build failed!"
@@ -51,29 +55,3 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."
-
-# 等待镜像文件生成（最多等待10分钟）
-for i in {1..20}; do
-  if ls /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz 1> /dev/null 2>&1; then
-    echo "镜像文件已找到。"
-    break
-  fi
-  echo "等待镜像文件生成...第$i次尝试"
-  sleep 30
-done
-
-# 如果文件仍未找到，提前退出
-if ! ls /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz 1> /dev/null 2>&1; then
-  echo "未找到目标镜像文件，请检查构建流程。"
-  exit 1
-fi
-
-# 复制镜像文件到工作区
-cp /home/build/immortalwrt/bin/targets/x86/64/*ext4-combined-efi.img.gz "${{ github.workspace }}"
-
-# 生成SHA256校验和
-cd "${{ github.workspace }}"
-for file in *ext4-combined-efi.img.gz; do
-  sha256sum "$file" > "$file.sha256"
-  sha256sum -c "$file.sha256"
-done
