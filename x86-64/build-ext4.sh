@@ -13,7 +13,7 @@ pppoe_account=${PPPOE_ACCOUNT}
 pppoe_password=${PPPOE_PASSWORD}
 EOF
 
-# 包列表（移除您不需要的两个包）
+# 软件包列表
 PACKAGES=""
 PACKAGES="$PACKAGES curl luci-i18n-diskman-zh-cn luci-i18n-firewall-zh-cn"
 PACKAGES="$PACKAGES luci-i18n-filebrowser-go-zh-cn luci-app-argon-config"
