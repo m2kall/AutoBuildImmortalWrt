@@ -44,10 +44,9 @@ if [ "$INCLUDE_DOCKER" = "yes" ]; then
     echo "Adding package: luci-i18n-dockerman-zh-cn"
 fi
 
-# 使用 "generic" profile 进行编译，ext4 文件系统通常由 .config 文件定义
-# 运行action时请先查看 "List available profiles" 步骤的输出来确认正确的Profile名称
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with 'generic' profile..."
-make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
+# 【重要修正】将 Profile 改回 generic-ext4 来构建 ext4 镜像
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with 'generic-ext4' profile..."
+make image PROFILE="generic-ext4" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
 
 if [ $? -ne 0 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Error: Build failed!"
