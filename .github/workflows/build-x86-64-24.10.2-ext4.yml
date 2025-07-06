@@ -50,33 +50,18 @@ jobs:
             fi
           fi
       
-      - name: List available profiles
-        run: |
-          echo "Listing available profiles in the image builder..."
-          docker run --rm -i immortalwrt/imagebuilder:x86-64-openwrt-24.10.2 make info
-     
       - name: Build ImmortalWrt-x86-64-ext4-efi
         run: |
-          profiles="${{ github.event.inputs.profile }}"
-          include_docker="${{ github.event.inputs.include_docker }}"
-          IFS=',' read -r -a profile_array <<< "$profiles"
-          
-          for profile in "${profile_array[@]}"; do
-            echo "Building for profile size: $profile MB"
-            
-            docker run --rm -i \
-              --user root \
-              -v "${{ github.workspace }}/bin:/home/build/immortalwrt/bin" \
-              -v "${{ github.workspace }}/files:/home/build/immortalwrt/files" \
-              -v "${{ github.workspace }}/x86-64/imm.config:/home/build/immortalwrt/.config" \
-              -v "${{ github.workspace }}/x86-64/build-ext4.sh:/home/build/immortalwrt/build-ext4.sh" \
-              -e PROFILE=$profile \
-              -e INCLUDE_DOCKER=$include_docker \
-              -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
-              -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
-              -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
-              immortalwrt/imagebuilder:x86-64-openwrt-24.10.2 /bin/bash /home/build/immortalwrt/build-ext4.sh
-          done
+          docker run --rm -i \
+            --user root \
+            -v "${{ github.workspace }}/bin:/home/build/immortalwrt/bin" \
+            -v "${{ github.workspace }}/x86-64/build-ext4.sh:/home/build/immortalwrt/build-ext4.sh" \
+            -e PROFILE=${{ github.event.inputs.profile }} \
+            -e INCLUDE_DOCKER=${{ github.event.inputs.include_docker }} \
+            -e ENABLE_PPPOE=${{ inputs.enable_pppoe }} \
+            -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
+            -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
+            immortalwrt/imagebuilder:x86-64-openwrt-24.10.2 /bin/bash /home/build/immortalwrt/build-ext4.sh
 
       - name: Generate Firmware SHA-256
         run: |
